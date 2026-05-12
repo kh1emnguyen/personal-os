@@ -1,0 +1,73 @@
+/* ── OS Palette ─────────────────────────────────────────── */
+:root {
+  --navy:        #0d1b2a;
+  --navy2:       #1a2e44;
+  --blue:        #0f3460;
+  --accent:      #e94560;
+  --green:       #4ade80;
+  --amber:       #fbbf24;
+  --purple:      #a78bfa;
+  --gold:        #c8a96e;
+  --text:        #e8edf2;
+  --muted:       rgba(232, 237, 242, 0.5);
+  --card-bg:     rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.09);
+
+  --font-sans:  'Inter', system-ui, sans-serif;
+  --font-serif: 'EB Garamond', Georgia, serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--navy);
+  color: var(--text);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: inherit; text-decoration: none; }
+button { cursor: pointer; border: none; background: none; font: inherit; }
+
+/* ── Writing Dashboard Theme (scoped) ───────────────────── */
+.writing-theme {
+  --bg:          #0f0f0f;
+  --surface:     #1a1a1a;
+  --surface2:    #232323;
+  --border:      rgba(255, 255, 255, 0.08);
+  --text-main:   #e8e8e8;
+  --text-muted:  #888;
+  --gold:        #c8a96e;
+  --gold-dim:    rgba(200, 169, 110, 0.15);
+  --green:       #4ade80;
+  --red:         #f87171;
+  --amber:       #fbbf24;
+  --blue:        #60a5fa;
+
+  background: var(--bg);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+}
+
+/* ── Pulse animation (live status dot) ──────────────────── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.3); }
+}
+
+/* ── Anti-Rut Theme ─────────────────────────────────────── */
+.anti-rut-sanctuary {
+  background: #0a0a0a;
+  color: var(--text);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
+
+.anti-rut-mirror {
+  background: var(--navy);
+  color: var(--text);
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
