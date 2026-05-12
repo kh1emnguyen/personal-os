@@ -18,11 +18,11 @@ const cards = [
     external: true,
   },
   {
-    title: 'No Worries Hub',
+    title: 'Nawarries Hub',
     description: 'BMSS internal operations — Slow Movers console (~290 SKUs, margin-floor promo pricing) and Swing Trade Dashboard (4,362 SKUs vs Duncans). Arbitrage pricing, quotable discount column.',
     accent: '#e94560',
     status: 'live',
-    href: 'https://kh1emnguyen.github.io/no-worries-hub/',
+    href: 'https://kh1emnguyen.github.io/nawarries-hub/',
     external: true,
   },
   {
