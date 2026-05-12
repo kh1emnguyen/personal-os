@@ -1,65 +1,125 @@
 {
-  "week": "2026-05-11",
+  "week": "2026-05-12",
   "mantras": [
     {
       "id": 1,
       "text": "The day is already mine. One true thing or full rest. Nothing between is the trap.",
-      "source": "Architecture of the Inevitable — XV"
+      "meaning": "You don't have to save the day and you don't have to destroy it. Pick one lane — real work or real rest — and stay in it. The guilty half-measure in the middle costs more than either extreme.",
+      "source": "Architecture of the Inevitable — XV",
+      "supplement": "The question isn't 'how do I eliminate the rut?' It's 'where does the pressure go if the valve is sealed?' A fully chosen rut costs half as much as one half-chosen twice.",
+      "supplementSource": "The Rut as Safety Valve — 17.04.26"
     },
     {
       "id": 2,
       "text": "The rut is not cowardice. It is a neurochemical circuit built rationally, under real pressure, that costs more than it saves.",
-      "source": "Architecture of the Inevitable — X"
+      "meaning": "Your brain built this pattern for real reasons — alcohol disrupts sleep, cortisol blunts, the default mode network fires. You can dismantle a circuit. You cannot will away cowardice by moral judgment. Every time you call it cowardice, you extend it.",
+      "source": "Architecture of the Inevitable — X",
+      "supplement": "Cocaine, alcohol, the phone — all trigger dopamine in the nucleus accumbens. The rut is a ritualized addiction. Which means it has a structure. And structures can be redesigned.",
+      "supplementSource": "Ruts = Ritualized Addictions — 31.12.25"
     },
     {
       "id": 3,
       "text": "A dolphin is not performing its membership in the ocean. It moves through it, leaves it, returns — without the return being a fresh start.",
-      "source": "Architecture of the Inevitable — XII"
+      "meaning": "You don't need to announce your comeback or stage a clean transition. Wednesday is just Wednesday. The return doesn't require ceremony. Show up without declaring that you're showing up.",
+      "source": "Architecture of the Inevitable — XII",
+      "supplement": "People can't hem you in with their old notions. You get shaken out of ruts. You can make new, better ruts, with people aiming at better things. — Charlie Munger",
+      "supplementSource": "How to Perceive Ruts — 07.01.26"
     },
     {
       "id": 4,
       "text": "Presence is not a reward for finishing. It is the thing itself.",
-      "source": "Perfect Days Principle"
+      "meaning": "The run where pace didn't matter, the rain at the soccer game, the coffee before work — these aren't distractions from becoming. They are irreplaceable instances of being this person, and they cannot be banked or made up later.",
+      "source": "Perfect Days Principle — May 3 Synthesis",
+      "supplement": "Life is nothing but a succession of present moments, culminating in death. You'll probably never get to a point where you feel you have things in perfect working order. — Oliver Burkeman",
+      "supplementSource": "Purposiveness as a Rut — 02.01.26"
     },
     {
       "id": 5,
       "text": "The goal isn't to be a land animal. It's to build a tank so you can carry your water with you.",
-      "source": "Architecture of the Inevitable — VII"
+      "meaning": "Don't try to willpower through dysregulation. Build environments that make dysregulation harder to fall into. BetStop was a tank. A morning anchor is a tank. Fresh-startism builds nothing — it just celebrates the return to water before the next time you're out of it.",
+      "source": "Architecture of the Inevitable — VII",
+      "supplement": "The mistake is allowing the rut to bleed into peak hours. The structural fix is not to resist it when it arrives but to make it architecturally impossible for it to begin during protected windows. This is a design move, not a willpower move.",
+      "supplementSource": "Rut Confinement — 24.04.26"
     },
     {
       "id": 6,
-      "text": "Standing up straight with your shoulders back is not something that is only physical — you are a spirit as well. It means voluntarily accepting the burden of Being.",
-      "source": "Stand Up Mantra — 07.01.26"
+      "text": "Remove the first rung. You don't fight the slope from the bottom.",
+      "meaning": "The sports video leads to YouTube leads to Casino. By Casino, the day is already categorised as a loss and the brain follows its own accounting. You don't fight the slope at the bottom — you remove the first rung at the top.",
+      "source": "Architecture of the Inevitable — II",
+      "supplement": "Aim small. You don't want to shoulder too much given your limited talents. Set one goal: by end of day, things in my life should be a tiny bit better than this morning. Then do what you decided to do, even if you do it badly.",
+      "supplementSource": "One Habit at a Time Mantra — 07.01.26"
     },
     {
       "id": 7,
-      "text": "I have no choice but to make a conscious choice not to rut. The turning point is already decided. The only variable is when I step into it.",
-      "source": "No Choice But to Make a Choice — 29.10.25"
+      "text": "Standing up means voluntarily accepting the burden of Being.",
+      "meaning": "Getting up and showing up isn't just physical. It's deciding to be responsible for your life even when it's inconvenient. It means tolerating the undramatic Tuesday on its own terms.",
+      "source": "Stand Up Mantra — 07.01.26",
+      "supplement": "You're stable enough to be secure, but flexible enough to transform. Immersed in the Tao — one foot in order, the other tentatively extended into chaos and the unknown.",
+      "supplementSource": "Chaos and Order Mantra — 07.01.26"
     },
     {
       "id": 8,
-      "text": "Social stratification is a bound. Predefined periods of work and rest are bounds. Conformity is a bound. Be boundless.",
-      "source": "Boundless Mantra — 31.10.25"
+      "text": "The rut is also a protest. A refusal to keep performing adequacy for a tribunal with no legitimate authority.",
+      "meaning": "Part of you knows that achieving more won't close the gap you're trying to close. The 'what's the point?' isn't nihilism — it's the authentic protest of a self that suspects the doings aren't actually working. That suspicion is correct.",
+      "source": "Architecture of the Inevitable — VI",
+      "supplement": "A rut is a controlled environment where attention doesn't need to be focused — no need to resist temptation. The reward need not be pleasure but simply relief: it just needs to make you feel unconstrained. — Oliver Burkeman",
+      "supplementSource": "Ruts and Perfectionism"
     },
     {
       "id": 9,
-      "text": "Everything matters. A sale means money to escape debt. Even leaving glasses on the bedside table before bed counts for something.",
-      "source": "Everything Matters Mantra — 06.01.26"
+      "text": "The harm isn't the rest. The harm is the chronic guilt that contaminates the rest and prevents recovery.",
+      "meaning": "If you're going to watch Casino, watch Casino all the way through. Don't try to salvage the day at 9pm with anxious productivity. A rut that is fully chosen costs half as much as one half-chosen twice.",
+      "source": "Architecture of the Inevitable — IV",
+      "supplement": "Being a little flagrant with diet has consequences but it's been genuinely helpful. Being relaxed in one area allows you to stay on top of others with higher stakes. Reframe a coping mechanism not as failure but as an actual function of your life. — Haley Nahman",
+      "supplementSource": "Appreciate the Temporary Nature of Ruts — 31.12.25"
     },
     {
       "id": 10,
-      "text": "Joy and beauty — simply from unconstraining the mind and letting it roam free. Be serendipitous and spontaneous.",
-      "source": "Serendipity and Spontaneity Mantra — 31.10.25"
+      "text": "The twenty minutes of paralysis is doing something — it's negotiating between two valid versions of you.",
+      "meaning": "The insipid anxiety at the rest-work boundary isn't weakness. It's your brain figuring out which self gets the afternoon. Phone scrolling short-circuits this negotiation at the worst moment and turns a 20-minute processing delay into a 90-minute void.",
+      "source": "Insipid Anxiety — 03.05.26",
+      "supplement": "Consciously engaging in repetition while recognising both its wrongness and potential for growth. Draining affect to such a state that leaves fertile ground for the mind to come up with new ideas. But: is the time outlay worth it?",
+      "supplementSource": "Dialectic of Ruts"
     },
     {
       "id": 11,
-      "text": "Remove the first rung. You don't fight the slope from the bottom.",
-      "source": "Architecture of the Inevitable — II"
+      "text": "I have no choice but to make a conscious choice not to rut.",
+      "meaning": "Not choosing is also a choice — and it has a cost. The turning point is already decided. The only variable is when you step into it.",
+      "source": "No Choice But to Make a Choice — 29.10.25",
+      "supplement": "Self-flagellation is itself a form of indulgence, not a corrective. The critical impulse arrives and tweaks self-regard like a cruel puppeteer — and crucially, the self-punishment that follows is its own kind of ego trip.",
+      "supplementSource": "Reject Rut Impulse"
     },
     {
       "id": 12,
-      "text": "I can feel the birds chirping, I can feel the sunshine, I can feel the cars hustle and bustle. I also have my body. That is enough.",
-      "source": "Embodiment Mantra — 06.01.26"
+      "text": "Joy and beauty — simply from unconstraining the mind and letting it roam free.",
+      "meaning": "The best things usually arrive unplanned. Applying a smidge more intentionality to the open moment isn't failure — it's the prerequisite. The human world opens up when you assume potentially great things are everywhere.",
+      "source": "Serendipity and Spontaneity Mantra — 31.10.25",
+      "supplement": "Some 'distraction' might be a necessary liminal state preceding deeper attention. Being the swinging door, letting the rest of existence pass through you — sometimes that's not avoidance. It's preparation.",
+      "supplementSource": "Distraction as Liminal State — 09.01.26"
+    },
+    {
+      "id": 13,
+      "text": "I can feel the birds chirping. I can feel the sunshine. I also have my body. That is enough.",
+      "meaning": "Before thought, before ambition, before the to-do list — there's just sensation. That's always available, even on the worst Tuesday.",
+      "source": "Embodiment Mantra — 06.01.26",
+      "supplement": "The 3,500 steps weren't a fitness metric. They were the container. The morning walk made the psychological state of the rest of the day possible. The morning architecture is a body protocol whose downstream effect is cognitive.",
+      "supplementSource": "Morning Architecture Cross-Synthesis — 18.04.26"
+    },
+    {
+      "id": 14,
+      "text": "Every time you call it cowardice, you extend it.",
+      "meaning": "Naming the rut as moral failure is itself part of the loop. The self-flagellation isn't a corrective — it's one more circuit in the same machine. Dismantle the circuit. Don't judge the person running it.",
+      "source": "Architecture of the Inevitable — X",
+      "supplement": "To this day, the superiority complex means you don't internalise your negatives as much as your positives. The rut is partly an attempt to access what's underneath — the parts that don't get acknowledged any other way.",
+      "supplementSource": "Ruts to Access Trauma — 01.01.26"
+    },
+    {
+      "id": 15,
+      "text": "Five hundred small decisions compose your day. Could you aim one or two at a better result?",
+      "meaning": "You don't need a new protocol. You need one thing — not a system, not a transformation. One completable thing that makes tomorrow a tiny bit better than today. That's compound interest.",
+      "source": "One Habit at a Time Mantra — 07.01.26",
+      "supplement": "Good procrastination is avoiding errands to do real work. The mildest seeming people, if they want to do real work, all have a certain degree of ruthlessness when it comes to avoiding the things that don't actually matter.",
+      "supplementSource": "Good Procrastination = Ruthlessness"
     }
   ]
 }
