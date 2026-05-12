@@ -2,20 +2,12 @@ import { useNavigate } from 'react-router-dom'
 
 const cards = [
   {
-    title: 'Slow Movers Console',
-    description: 'Surfaces ~290 SKUs with tied-up capital; margin-floor promo pricing (Beer ≥25%, Wine ≥30%, Spirits ≥15%). Updates Thursday.',
-    accent: '#e94560',
-    status: 'live',
-    href: 'https://kh1emnguyen.github.io/bmss-slow-movers/',
-    external: true,
-  },
-  {
-    title: 'Swing Trade Dashboard',
-    description: '4,362 matched SKUs vs Duncans (ALM 2088). Arbitrage pricing with quotable discount column. Wine, Spirits, Beer, RTD.',
-    accent: '#3b82f6',
-    status: 'live',
-    href: 'https://kh1emnguyen.github.io/bmss-swing-trade/',
-    external: true,
+    title: 'Anti-Rut',
+    description: 'Personalised mantra player + rut architecture mirror. Two modes: meditate (voice narration) and understand (five-layer psychological map).',
+    accent: '#4ade80',
+    status: 'building',
+    href: '/anti-rut',
+    external: false,
   },
   {
     title: 'Writing Dashboard',
@@ -26,19 +18,12 @@ const cards = [
     external: true,
   },
   {
-    title: 'Anti-Rut',
-    description: 'Personalised mantra player + rut architecture mirror. Two modes: meditate (voice narration) and understand (five-layer psychological map).',
-    accent: '#4ade80',
-    status: 'building',
-    href: '/anti-rut',
-    external: false,
-  },
-  {
-    title: 'AU Parallel Beer Import',
-    description: 'Landed cost + ATO excise + A$/case inc. GST with live EUR/AUD. NL + Riga lots. Moving to Cloudflare Worker.',
-    accent: '#a78bfa',
-    status: 'migrating',
-    disabled: true,
+    title: 'No Worries Hub',
+    description: 'BMSS internal operations — Slow Movers console (~290 SKUs, margin-floor promo pricing) and Swing Trade Dashboard (4,362 SKUs vs Duncans). Arbitrage pricing, quotable discount column.',
+    accent: '#e94560',
+    status: 'live',
+    href: 'https://kh1emnguyen.github.io/no-worries-hub/',
+    external: true,
   },
   {
     title: 'Financial OS',
