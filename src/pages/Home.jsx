@@ -10,6 +10,14 @@ const cards = [
     external: false,
   },
   {
+    title: 'Weekly Check-In',
+    description: 'Sunday night form — movie watched, Garmin sleep data, food, training. A co-work agent turns your answers into vault notes by Monday morning.',
+    accent: '#a78bfa',
+    status: 'building',
+    href: '/check-in',
+    external: false,
+  },
+  {
     title: 'Writing Dashboard',
     description: 'Live editorial feedback loop. 7-section analysis (Progress, Quality, Quick Wins, Critique, Q&A, Sources). Supabase-backed feedback items.',
     accent: '#c8a96e',
