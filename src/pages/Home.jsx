@@ -34,6 +34,14 @@ const cards = [
     external: true,
   },
   {
+    title: 'Lenexa Progress Tracker',
+    description: 'Real-time record of contribution at Lenexa Medical — installations, Claude ops workflow, All Saints Home project, and what comes next.',
+    accent: '#d4882a',
+    status: 'live',
+    href: 'https://kh1emnguyen.github.io/lenexa-progress/',
+    external: true,
+  },
+  {
     title: 'Financial OS',
     description: 'FY tax position (property + BMSS salary + Lenexa), depreciation schedule, $500/wk loan tracker, salary optimisation.',
     accent: '#fbbf24',
@@ -64,9 +72,9 @@ const cards = [
 ]
 
 const stats = [
-  { label: 'Live tools',       value: '3' },
+  { label: 'Live tools',       value: '4' },
   { label: 'Tools building',   value: '1' },
-  { label: 'Repos on GitHub',  value: '3' },
+  { label: 'Repos on GitHub',  value: '4' },
   { label: 'Supabase vectors', value: '~3,500' },
 ]
 
