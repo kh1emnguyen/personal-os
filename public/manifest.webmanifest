@@ -1,0 +1,12 @@
+{
+  "name": "Personal OS",
+  "short_name": "Personal OS",
+  "start_url": "/personal-os/#/pulse",
+  "scope": "/personal-os/",
+  "display": "standalone",
+  "background_color": "#0d1b2a",
+  "theme_color": "#0d1b2a",
+  "icons": [
+    { "src": "/personal-os/favicon.svg", "type": "image/svg+xml", "sizes": "any" }
+  ]
+}

@@ -18,6 +18,14 @@ const cards = [
     external: false,
   },
   {
+    title: 'Pulse',
+    description: 'Passive habit capture. Random two-second check-ins fire during deep-work hours — meals, teeth, skincare — logged without breaking focus. Feeds the background life-state agent.',
+    accent: '#38bdf8',
+    status: 'building',
+    href: '/pulse',
+    external: false,
+  },
+  {
     title: 'Writing Dashboard',
     description: 'Live editorial feedback loop. 7-section analysis (Progress, Quality, Quick Wins, Critique, Q&A, Sources). Supabase-backed feedback items.',
     accent: '#c8a96e',
@@ -73,7 +81,7 @@ const cards = [
 
 const stats = [
   { label: 'Live tools',       value: '4' },
-  { label: 'Tools building',   value: '1' },
+  { label: 'Tools building',   value: '2' },
   { label: 'Repos on GitHub',  value: '4' },
   { label: 'Supabase vectors', value: '~3,500' },
 ]
