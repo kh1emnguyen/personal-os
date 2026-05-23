@@ -2,11 +2,11 @@ import { useNavigate } from 'react-router-dom'
 
 const cards = [
   {
-    title: 'Personal OS',
-    description: 'Mission control hub. Navigation to all personal dashboards, tools, and life-state tracking systems.',
-    accent: '#a78bfa',
+    title: 'Stovetop',
+    description: 'Burner matrix for active projects. Track momentum, heat level, and what\'s simmering. Real-time view of where energy is allocated across Lenexa, BMSS, Celiva, and writing.',
+    accent: '#f97316',
     status: 'live',
-    href: 'https://kh1emnguyen.github.io/personal-os/',
+    href: 'https://kh1emnguyen.github.io/stovetop/',
     external: true,
   },
   {
