@@ -2,6 +2,22 @@ import { useNavigate } from 'react-router-dom'
 
 const cards = [
   {
+    title: 'Personal OS',
+    description: 'Mission control hub. Navigation to all personal dashboards, tools, and life-state tracking systems.',
+    accent: '#a78bfa',
+    status: 'live',
+    href: 'https://kh1emnguyen.github.io/personal-os/',
+    external: true,
+  },
+  {
+    title: 'Health OS',
+    description: 'Real-time habit baselines from Garmin + Strava. Sleep trends, body battery, activity log, and stress metrics synced at 6am daily.',
+    accent: '#06b6d4',
+    status: 'live',
+    href: 'https://kh1emnguyen.github.io/health-os/',
+    external: true,
+  },
+  {
     title: 'Anti-Rut',
     description: 'Personalised mantra player + rut architecture mirror. Two modes: meditate (voice narration) and understand (five-layer psychological map).',
     accent: '#4ade80',
@@ -80,9 +96,9 @@ const cards = [
 ]
 
 const stats = [
-  { label: 'Live tools',       value: '4' },
+  { label: 'Live tools',       value: '6' },
   { label: 'Tools building',   value: '2' },
-  { label: 'Repos on GitHub',  value: '4' },
+  { label: 'Repos on GitHub',  value: '6' },
   { label: 'Supabase vectors', value: '~3,500' },
 ]
 
