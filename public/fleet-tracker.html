@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" /><meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Personal OS — Fleet Tracker</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #070e1b; color: #e8edf2; user-select: none; }
+::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: #1a3050; border-radius: 3px; }
+.tab-btn { padding: 6px 18px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: #64748b; cursor: pointer; font-size: 12px; font-weight: 600; letter-spacing: .04em; transition: all .2s; }
+.tab-btn.active { background: rgba(255,255,255,.07); color: #e8edf2; border-color: rgba(255,255,255,.2); }
+.tab-btn:hover:not(.active) { color: #94a3b8; }
+@keyframes fadeIn { from{opacity:0;transform:scale(.96)} to{opacity:1;transform:scale(1)} }
+</style>
+</head>
+<body><div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+const STORAGE_KEY = 'fleet-v4';
+
+/* ─── DATA ──────────────────────────────────────────────────────── */
+
+const INPUTS = [
+  { id:'obsidian', name:'Obsidian Vault',   desc:'700+ notes · Journals · Inbox · Zettelkasten', color:'#a78bfa', emoji:'🔮', layer:0 },
+  { id:'gmail',    name:'Gmail',            desc:'Lenexa · BMSS · Personal',                    color:'#38bdf8', emoji:'📧', layer:0 },
+  { id:'gcal',     name:'Google Calendar',  desc:'All domains · schedule routing',               color:'#4ade80', emoji:'📅', layer:0 },
+  { id:'notion',   name:'Notion',           desc:'Task DBs · MIND MATTER NOTES',                color:'#fbbf24', emoji:'📋', layer:0 },
+  { id:'supabase', name:'Supabase',         desc:'weekly_checkins · habit_pings · ~3,500 vectors',color:'#06b6d4', emoji:'🗄️', layer:0 },
+  { id:'readwise', name:'Readwise',         desc:'Book + article highlights',                   color:'#f97316', emoji:'📚', layer:0 },
+  { id:'garmin',   name:'Garmin / Strava',  desc:'Sleep · body battery · activities',           color:'#e94560', emoji:'💪', layer:0 },
+  { id:'pulse',    name:'Pulse & Check-In', desc:'Daily habit pings + Sunday form',             color:'#c8a96e', emoji:'⚡', layer:0 },
+];
+
+const SKILL_GROUPS = [
+  { id:'writing', label:'Writing & Voice', color:'#a78bfa', items:[
+    { id:'sk-lwa',   name:'Live Writing Asst',    trigger:'n8n 30-min',        desc:'7-section editorial feedback. Feeds Mind Matter app.',               layer:1 },
+    { id:'sk-cons',  name:'Consigliere Query',    trigger:'Open writing queries', desc:'Vault-aware writing queries — notes, voice, thematic links.',      layer:1 },
+    { id:'sk-ebert', name:'Ebert Film Review',    trigger:'"write a review"',   desc:'600-word Substack review template. Used by Film Review Writer.',     layer:1 },
+    { id:'sk-zauto', name:'Zettelkasten AL',      trigger:'"append links"',     desc:'Appends [[wiki links]] to concept notes. Drives ZK Writer.',         layer:1 },
+  ]},
+  { id:'intel', label:'Intelligence', color:'#38bdf8', items:[
+    { id:'sk-brief', name:'Daily Briefing',       trigger:'Day Synthesizer',   desc:'Briefing format spec — grounding, journal, calendar, email.',        layer:1 },
+    { id:'sk-jsyn',  name:'Journal Synthesis',    trigger:'"recap my week"',   desc:'Journal conventions — rut detection, mood, project threads.',        layer:1 },
+    { id:'sk-rskil', name:'Research Scout Skill', trigger:'Daily autonomous',  desc:'Web research protocols — long-term-memory.md queue + return loop.',  layer:1 },
+    { id:'sk-audit', name:'Self-Audit Skill',     trigger:'Stop hook',         desc:'Session quality — tool efficiency, goal alignment, logs.',           layer:1 },
+  ]},
+  { id:'ops', label:'Ops & Admin', color:'#fb923c', items:[
+    { id:'sk-pdf',   name:'PDF Summariser',       trigger:'"summarise this"',  desc:'Document processing — verbatim quotes, voice-framed, tension flags.', layer:1 },
+    { id:'sk-email', name:'Email Digest',         trigger:'"email digest"',    desc:'Triage rules — ACTION/READ/SKIM/FILTERED, supplier priority.',        layer:1 },
+    { id:'sk-bmss',  name:'BMSS Order Emails',    trigger:'"draft orders"',    desc:'Supplier email templates — CCA, ALM, Duncans. Drafts only.',         layer:1 },
+    { id:'sk-wci',   name:'Weekly Check-In',      trigger:'Sunday 9pm',        desc:'Check-in form spec. Feeds Sunday Orchestrator + Health OS.',         layer:1 },
+    { id:'sk-rw',    name:'Readwise to Notion',   trigger:'Saturday 9am',      desc:'Highlights → annotated Notion pages + weekend Knowledge Miner.',     layer:1 },
+  ]},
+];
+const SKILLS = SKILL_GROUPS.flatMap(g => g.items.map(s => ({ ...s, groupColor: g.color, groupLabel: g.label })));
+
+const AGENTS = [
+  { id:'morning-orch',   name:'Morning Orch.',     fleet:'morning',    phase:'conductor', schedule:'Daily 7am',         isOrch:true, color:'#4ade80', layer:2, fn:'Routes Phase A→B→C, domain context (Lenexa/BMSS/open), task-completion prompts at close.' },
+  { id:'journal-scout',  name:'Journal Scout',     fleet:'morning',    phase:'A',         schedule:'Phase A — parallel', color:'#86efac', layer:2, fn:'Last 3 days of journals → themes, mood, rut status, new concepts for Knowledge Miner.' },
+  { id:'email-triage',   name:'Email Triage',      fleet:'morning',    phase:'A',         schedule:'Phase A — parallel', color:'#7dd3fc', layer:2, fn:'Gmail → ACTION/READ/SKIM/FILTERED. Lenexa + BMSS supplier threads prioritised.' },
+  { id:'calendar-fetch', name:'Calendar Fetch',    fleet:'morning',    phase:'A',         schedule:'Phase A — parallel', color:'#6ee7b7', layer:2, fn:'7-day Google Calendar → today\'s shape, collisions, domain routing signal.' },
+  { id:'notion-tasks',   name:'Notion Tasks',      fleet:'morning',    phase:'A',         schedule:'Phase A — parallel', color:'#fde68a', layer:2, fn:'Notion task DB → urgent/soon/by-domain for Lenexa, BMSS, Celiva, writing.' },
+  { id:'inbox-scout',    name:'Inbox Scout',       fleet:'morning',    phase:'A',         schedule:'Phase A — parallel', color:'#fca5a5', layer:2, fn:'Obsidian Inbox scan → if files found, triggers Document Distiller in Phase B.' },
+  { id:'knowledge-miner',name:'Knowledge Miner',   fleet:'morning',    phase:'B',         schedule:'Phase B — after A',  color:'#93c5fd', layer:2, fn:'Journal themes → Supabase vectors + Notion + Obsidian. Surfaces vault content + ZK candidates.' },
+  { id:'zettelkasten-w', name:'Zettelkasten Wr.',  fleet:'morning',    phase:'B',         schedule:'Phase B — if conns', color:'#d8b4fe', layer:2, fn:'Creates 2–3 permanent concept notes with [[wiki links]]. Weekend: maximally stochastic.' },
+  { id:'doc-distiller',  name:'Doc Distiller',     fleet:'morning',    phase:'B',         schedule:'Phase B — if inbox', color:'#fcd34d', layer:2, fn:'Inbox PDFs/essays → annotated Notion page, verbatim quotes, voice-framed, tension flags.' },
+  { id:'day-synth',      name:'Day Synthesizer',   fleet:'morning',    phase:'C',         schedule:'Phase C — final',    color:'#4ade80', layer:2, fn:'All A+B results → daily briefing. Writes to Obsidian Briefings. Recommends cuts when over-stacked.' },
+  { id:'sunday-orch',    name:'Sunday Orch.',       fleet:'sunday',     phase:'conductor', schedule:'Weekly 9pm',         isOrch:true, color:'#a78bfa', layer:2, fn:'Reads weekly_checkins → health log + film review + journal scout → weekly synthesis.' },
+  { id:'health-log',     name:'Health Log',         fleet:'sunday',     phase:'A',         schedule:'Phase A — parallel', color:'#c4b5fd', layer:2, fn:'Check-in data → structured health log entry written to Obsidian.' },
+  { id:'film-review-w',  name:'Film Review Wr.',   fleet:'sunday',     phase:'A',         schedule:'Phase A — if movie', color:'#f9a8d4', layer:2, fn:'Movie title + thoughts → 600-word Substack review in Khiem\'s voice.' },
+  { id:'weekly-synth',   name:'Weekly Synthesizer',fleet:'sunday',     phase:'C',         schedule:'Phase C — final',    color:'#a78bfa', layer:2, fn:'7-day journal + health + film → journal-feedback.md. 3–5 line top-line inline.' },
+  { id:'research-scout', name:'Research Scout',    fleet:'standalone', phase:'auto',      schedule:'Daily autonomous',   color:'#38bdf8', layer:2, fn:'long-term-memory.md queue → web research → findings appended as tomorrow\'s seed.' },
+  { id:'self-audit',     name:'Self-Audit',         fleet:'standalone', phase:'auto',      schedule:'Stop hook',          color:'#67e8f9', layer:2, fn:'Session end → tool efficiency + goal alignment → Automation Logs.' },
+  { id:'readwise-proc',  name:'Readwise Proc.',    fleet:'standalone', phase:'auto',      schedule:'Saturday 9am',       color:'#fdba74', layer:2, fn:'Readwise highlights → annotated Notion pages. Feeds weekend KM sweep.' },
+  { id:'pulse-updater',  name:'Pulse Updater',     fleet:'standalone', phase:'auto',      schedule:'Every 3h',           color:'#fcd34d', layer:2, fn:'habit_pings + Gmail/Calendar → MEMORY.md Sections II & IV. Cheap refresh.' },
+  { id:'bmss-drafter',   name:'BMSS Order Draft.', fleet:'ondemand',   phase:'manual',    schedule:'Manual',             color:'#fca5a5', layer:2, fn:'Supplier + SKU quantities → Gmail draft orders. Drafts only, never sends.' },
+];
+
+const APPS = [
+  { id:'app-pos', name:'Personal OS',        url:'personal-os',         desc:'Mission control hub. Anti-Rut · Pulse · Check-In.',      color:'#6366f1', layer:3 },
+  { id:'app-hos', name:'Health OS',           url:'health-os',           desc:'Garmin/Strava baselines · sleep · body battery.',        color:'#06b6d4', layer:3 },
+  { id:'app-sto', name:'Stovetop',            url:'stovetop',            desc:'Project burner matrix — heat + momentum by domain.',     color:'#f97316', layer:3 },
+  { id:'app-nav', name:'Nawarries Hub',       url:'nawarries-hub',       desc:'BMSS ops — Slow Movers + Swing Trade dashboards.',       color:'#e94560', layer:3 },
+  { id:'app-mm',  name:'Mind Matter Writing', url:'mind-matter-writing', desc:'Live editorial feedback · 7-section analysis.',          color:'#c8a96e', layer:3 },
+  { id:'app-len', name:'Lenexa Progress',     url:'lenexa-progress',     desc:'Lenexa contribution log — installations, ops, ASH.',    color:'#d4882a', layer:3 },
+];
+
+// Edges: [from, to, label?]
+const EDGES = [
+  // Sources → Agents
+  ['obsidian','journal-scout'],['obsidian','inbox-scout'],['obsidian','knowledge-miner'],['obsidian','research-scout'],
+  ['gmail','email-triage'],['gmail','bmss-drafter'],
+  ['gcal','calendar-fetch'],
+  ['notion','notion-tasks'],['notion','knowledge-miner'],['notion','doc-distiller'],
+  ['supabase','knowledge-miner'],['supabase','sunday-orch'],['supabase','pulse-updater'],['supabase','health-log'],
+  ['readwise','readwise-proc'],
+  ['garmin','health-log'],
+  ['pulse','pulse-updater'],['pulse','supabase'],
+  // Skills → Agents
+  ['sk-jsyn','journal-scout'],['sk-email','email-triage'],['sk-brief','day-synth'],
+  ['sk-ebert','film-review-w'],['sk-zauto','zettelkasten-w'],['sk-rskil','research-scout'],
+  ['sk-audit','self-audit'],['sk-pdf','doc-distiller'],['sk-bmss','bmss-drafter'],
+  ['sk-wci','sunday-orch'],['sk-rw','readwise-proc'],['sk-lwa','app-mm'],
+  // Orchestrators fire sub-agents
+  ['morning-orch','journal-scout'],['morning-orch','email-triage'],['morning-orch','calendar-fetch'],
+  ['morning-orch','notion-tasks'],['morning-orch','inbox-scout'],
+  ['sunday-orch','health-log'],['sunday-orch','film-review-w'],['sunday-orch','journal-scout'],
+  // A → B
+  ['journal-scout','knowledge-miner'],['inbox-scout','doc-distiller'],['knowledge-miner','zettelkasten-w'],
+  // A/B → C
+  ['email-triage','day-synth'],['calendar-fetch','day-synth'],['notion-tasks','day-synth'],
+  ['knowledge-miner','day-synth'],['zettelkasten-w','day-synth'],['doc-distiller','day-synth'],['journal-scout','day-synth'],
+  // Sunday A → C
+  ['health-log','weekly-synth'],['film-review-w','weekly-synth'],['journal-scout','weekly-synth'],
+  // → Apps
+  ['day-synth','app-pos'],['health-log','app-hos'],['pulse-updater','app-hos'],
+  ['weekly-synth','app-pos'],['self-audit','app-pos'],
+  ['sk-lwa','app-mm'],['readwise-proc','app-pos'],
+  ['bmss-drafter','app-nav'],
+];
+
+/* ─── HELPERS ───────────────────────────────────────────────────── */
+function load() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}'); } catch { return {}; } }
+function save(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d)); } catch {} }
+const STEPS = [0,25,50,75,100];
+const ALL_TRACKABLE = [...SKILLS, ...AGENTS, ...APPS];
+function pctColor(p) { return p===100?'#4ade80':p>0?'#fbbf24':'#334155'; }
+function pctBg(p) { return p===100?'linear-gradient(90deg,#4ade80,#22d3ee)':p>0?'linear-gradient(90deg,#f59e0b,#fbbf24)':'#1a3050'; }
+
+/* ─── PROGRESS CONTROL ──────────────────────────────────────────── */
+function PCtrl({ id, pct, onSet, small }) {
+  const idx = STEPS.indexOf(pct);
+  const sz = small ? 16 : 18;
+  const Btn = ({ dir }) => {
+    const disabled = dir==='−'?pct===0:pct===100;
+    const next = dir==='−'?STEPS[Math.max(0,idx-1)]:STEPS[Math.min(4,idx+1)];
+    return <button onClick={()=>!disabled&&onSet(id,next)} style={{
+      width:sz,height:sz,borderRadius:4,border:'none',cursor:disabled?'default':'pointer',
+      background:disabled?'transparent':dir==='+'?'rgba(74,222,128,.15)':'rgba(255,255,255,.06)',
+      color:disabled?'#1a3050':dir==='+'?'#4ade80':'#64748b',
+      fontSize:small?11:13,fontWeight:800,display:'flex',alignItems:'center',justifyContent:'center',padding:0,
+    }}>{dir}</button>;
+  };
+  return (
+    <div style={{display:'flex',alignItems:'center',gap:4}}>
+      <Btn dir="−"/>
+      <div style={{flex:1,height:small?2:3,borderRadius:2,background:'#0d2040',overflow:'hidden'}}>
+        <div style={{height:'100%',width:`${pct}%`,background:pctBg(pct),transition:'width .3s'}}/>
+      </div>
+      <span style={{fontSize:small?9:10,fontWeight:700,color:pctColor(pct),minWidth:24,textAlign:'right'}}>{pct}%</span>
+      <Btn dir="+"/>
+    </div>
+  );
+}
+
+/* ─── FLOWCHART VIEW ─────────────────────────────────────────────
+   (condensed from previous version)
+──────────────────────────────────────────────────────────────────── */
+function FlowchartView({ progress, onSet }) {
+  const morningAgents = AGENTS.filter(a=>a.fleet==='morning');
+  const sideAgents = AGENTS.filter(a=>a.fleet!=='morning');
+
+  const Card = ({ item, color, nameSize=11, fnText }) => {
+    const pct = progress[item.id]??0;
+    return (
+      <div style={{background:'rgba(255,255,255,.02)',border:`1px solid ${pct===100?'rgba(74,222,128,.25)':'rgba(255,255,255,.05)'}`,
+        borderLeft:`3px solid ${color||item.color||item.groupColor||'#334155'}`,borderRadius:7,padding:'8px 10px',
+        display:'flex',flexDirection:'column',gap:6}}>
+        <div style={{fontSize:nameSize,fontWeight:600,color:pct===100?'#86efac':'#b0bfcf'}}>{pct===100&&'✅ '}{item.name}</div>
+        {fnText && <p style={{fontSize:9,color:'#3d5470',lineHeight:1.4}}>{item.fn||item.desc||item.trigger}</p>}
+        <PCtrl id={item.id} pct={pct} onSet={onSet} small />
+      </div>
+    );
+  };
+
+  const SectionBox = ({ title, sub, color, items }) => {
+    const avg = Math.round(items.reduce((s,a)=>s+(progress[a.id]??0),0)/items.length);
+    return (
+      <div style={{background:'rgba(255,255,255,.015)',border:`1px solid rgba(255,255,255,.06)`,borderTop:`2px solid ${color}`,borderRadius:10,padding:'12px',display:'flex',flexDirection:'column',gap:7}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+          <div><span style={{fontSize:11,fontWeight:700,color}}>{title}</span><span style={{fontSize:9,color:'#334155',marginLeft:6}}>{sub}</span></div>
+          <span style={{fontSize:10,fontWeight:700,color:pctColor(avg),background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.07)',borderRadius:20,padding:'2px 7px'}}>{avg}%</span>
+        </div>
+        <div style={{display:'flex',flexDirection:'column',gap:5}}>
+          {items.map(a=><Card key={a.id} item={a} color={a.color} fnText />)}
+        </div>
+      </div>
+    );
+  };
+
+  const PhaseDivider = ({ label }) => (
+    <div style={{display:'flex',alignItems:'center',gap:6,margin:'3px 0'}}>
+      <div style={{flex:1,height:1,background:'#1a3050'}}/>
+      <span style={{fontSize:8,color:'#1e3a5f',letterSpacing:'.06em',whiteSpace:'nowrap'}}>{label} ↓</span>
+      <div style={{flex:1,height:1,background:'#1a3050'}}/>
+    </div>
+  );
+
+  const Arrow = ({ label }) => (
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',padding:'3px 0'}}>
+      <div style={{width:1,height:10,background:'#1a3050'}}/>
+      <span style={{fontSize:8,color:'#263d5a',letterSpacing:'.06em'}}>{label} ▼</span>
+    </div>
+  );
+
+  const morningAvg = Math.round(morningAgents.reduce((s,a)=>s+(progress[a.id]??0),0)/morningAgents.length);
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:0,overflow:'auto',maxHeight:'calc(100vh - 130px)',padding:'16px 20px'}}>
+      {/* Inputs */}
+      <div style={{background:'rgba(255,255,255,.01)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px',marginBottom:4}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:'#334155',marginBottom:8}}>📥 DATA SOURCES</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(160px,1fr))',gap:6}}>
+          {INPUTS.map(n=>(
+            <div key={n.id} style={{background:'rgba(255,255,255,.025)',border:`1px solid rgba(255,255,255,.06)`,borderTop:`2px solid ${n.color}`,borderRadius:7,padding:'8px 10px'}}>
+              <div style={{fontSize:11,fontWeight:600,color:'#94a3b8'}}>{n.emoji} {n.name}</div>
+              <div style={{fontSize:9,color:'#263d5a',marginTop:2}}>{n.desc}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <Arrow label="feeds into" />
+      {/* Skills */}
+      <div style={{background:'rgba(255,255,255,.01)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px',marginBottom:4}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:'#334155',marginBottom:8}}>📖 SKILLS LAYER</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
+          {SKILL_GROUPS.map(g=>{
+            const avg=Math.round(g.items.reduce((s,i)=>s+(progress[i.id]??0),0)/g.items.length);
+            return (
+              <div key={g.id} style={{background:'rgba(255,255,255,.015)',border:'1px solid rgba(255,255,255,.05)',borderTop:`2px solid ${g.color}`,borderRadius:9,padding:'10px',display:'flex',flexDirection:'column',gap:6}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <span style={{fontSize:11,fontWeight:700,color:g.color}}>{g.label}</span>
+                  <span style={{fontSize:9,fontWeight:700,color:pctColor(avg)}}>{avg}%</span>
+                </div>
+                {g.items.map(sk=><Card key={sk.id} item={sk} color={g.color} />)}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <Arrow label="inform agents" />
+      {/* Agents */}
+      <div style={{background:'rgba(255,255,255,.01)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px',marginBottom:4}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:'#334155',marginBottom:8}}>🤖 AGENT FLEET</div>
+        <div style={{display:'grid',gridTemplateColumns:'3fr 2fr',gap:12}}>
+          {/* Morning fleet */}
+          <div style={{background:'rgba(74,222,128,.03)',border:'1px solid rgba(74,222,128,.12)',borderTop:'2px solid #4ade80',borderRadius:10,padding:'12px',display:'flex',flexDirection:'column',gap:6}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+              <span style={{fontSize:11,fontWeight:700,color:'#4ade80'}}>Morning Fleet</span>
+              <span style={{fontSize:9,fontWeight:700,color:pctColor(morningAvg)}}>{morningAvg}%</span>
+            </div>
+            {morningAgents.filter(a=>a.phase==='conductor').map(a=><Card key={a.id} item={a} color={a.color} fnText />)}
+            <PhaseDivider label="PHASE A — parallel" />
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:5}}>
+              {morningAgents.filter(a=>a.phase==='A').map(a=><Card key={a.id} item={a} color={a.color} />)}
+            </div>
+            <PhaseDivider label="PHASE B — after A" />
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:5}}>
+              {morningAgents.filter(a=>a.phase==='B').map(a=><Card key={a.id} item={a} color={a.color} />)}
+            </div>
+            <PhaseDivider label="PHASE C — synthesis" />
+            {morningAgents.filter(a=>a.phase==='C').map(a=><Card key={a.id} item={a} color={a.color} fnText />)}
+          </div>
+          {/* Side fleets */}
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {[
+              {title:'Sunday Fleet',sub:'Weekly 9pm',color:'#a78bfa',items:sideAgents.filter(a=>a.fleet==='sunday')},
+              {title:'Standalone Autonomous',sub:'Background',color:'#38bdf8',items:sideAgents.filter(a=>a.fleet==='standalone'&&a.phase==='auto')},
+              {title:'On-Demand',sub:'Manual',color:'#fb923c',items:sideAgents.filter(a=>a.phase==='manual')},
+            ].map(s=><SectionBox key={s.title} {...s} />)}
+          </div>
+        </div>
+      </div>
+      <Arrow label="write to" />
+      {/* Apps */}
+      <div style={{background:'rgba(255,255,255,.01)',border:'1px solid rgba(255,255,255,.05)',borderRadius:10,padding:'12px'}}>
+        <div style={{fontSize:9,fontWeight:700,letterSpacing:'.08em',color:'#334155',marginBottom:8}}>🚀 APPS & OUTPUTS</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))',gap:8}}>
+          {APPS.map(a=>{
+            const pct=progress[a.id]??0;
+            return (
+              <div key={a.id} style={{background:'rgba(255,255,255,.025)',border:`1px solid ${pct===100?'rgba(74,222,128,.3)':'rgba(255,255,255,.06)'}`,borderTop:`2px solid ${a.color}`,borderRadius:8,padding:'10px 12px',display:'flex',flexDirection:'column',gap:7}}>
+                <div style={{fontSize:12,fontWeight:700,color:pct===100?'#86efac':'#c8d5e8'}}>{pct===100&&'✅ '}{a.name}</div>
+                <p style={{fontSize:9,color:'#3d5470'}}>{a.desc}</p>
+                <PCtrl id={a.id} pct={pct} onSet={onSet} small />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── NETWORK VIEW ───────────────────────────────────────────────── */
+
+const ALL_NODES = [
+  ...INPUTS.map(n=>({...n, type:'source', trackable:false})),
+  ...SKILLS.map(s=>({...s, color:s.groupColor, type:'skill', trackable:true})),
+  ...AGENTS.map(a=>({...a, type:'agent', trackable:true})),
+  ...APPS.map(a=>({...a, type:'app', trackable:true})),
+];
+
+function nodeRadius(n) {
+  if (n.isOrch) return 28;
+  if (n.type==='source') return 20;
+  if (n.type==='app') return 22;
+  return 18;
+}
+
+function runForce(nodes, links, W, H, iterations=400) {
+  // Initialize positions in layer bands
+  const layerCounts = {};
+  nodes.forEach(n => { layerCounts[n.layer] = (layerCounts[n.layer]||0)+1; });
+  const layerIdx = {};
+  nodes.forEach(n => { layerIdx[n.id] = layerIdx[n.id]!==undefined ? layerIdx[n.id] : 0; });
+  const seen = {};
+  nodes.forEach(n => {
+    seen[n.layer] = seen[n.layer]||0;
+    n.x = (W * 0.1) + (W * 0.8) * (seen[n.layer]+0.5) / layerCounts[n.layer];
+    n.y = (H * 0.08) + (H * 0.84) * n.layer / 3;
+    seen[n.layer]++;
+    n.vx = 0; n.vy = 0;
+  });
+
+  const nodeMap = {};
+  nodes.forEach(n => nodeMap[n.id] = n);
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const alpha = 1 - iter/iterations;
+    // Repulsion
+    for (let i=0;i<nodes.length;i++) {
+      for (let j=i+1;j<nodes.length;j++) {
+        const a=nodes[i],b=nodes[j];
+        let dx=b.x-a.x, dy=b.y-a.y;
+        const d=Math.sqrt(dx*dx+dy*dy)||0.01;
+        const minDist = nodeRadius(a)+nodeRadius(b)+16;
+        if (d < minDist*3) {
+          const f = Math.min(3000/(d*d), 30) * alpha;
+          a.vx-=f*dx/d; a.vy-=f*dy/d;
+          b.vx+=f*dx/d; b.vy+=f*dy/d;
+        }
+      }
+    }
+    // Link spring
+    links.forEach(([sid,tid]) => {
+      const s=nodeMap[sid],t=nodeMap[tid];
+      if(!s||!t)return;
+      const dx=t.x-s.x, dy=t.y-s.y;
+      const d=Math.sqrt(dx*dx+dy*dy)||0.01;
+      const ideal = 100 + Math.abs(s.layer-t.layer)*30;
+      const f=(d-ideal)*0.04*alpha;
+      s.vx+=f*dx/d; s.vy+=f*dy/d;
+      t.vx-=f*dx/d; t.vy-=f*dy/d;
+    });
+    // Layer gravity (keep nodes near their layer band)
+    nodes.forEach(n => {
+      const targetY = (H*0.08)+(H*0.84)*n.layer/3;
+      n.vy += (targetY - n.y) * 0.04 * alpha;
+      n.vx += (W/2 - n.x) * 0.002;
+    });
+    // Integrate
+    nodes.forEach(n => {
+      n.vx*=0.75; n.vy*=0.75;
+      n.x=Math.max(40,Math.min(W-40,n.x+n.vx));
+      n.y=Math.max(40,Math.min(H-40,n.y+n.vy));
+    });
+  }
+  return nodes;
+}
+
+function NetworkView({ progress, onSet }) {
+  const svgRef = useRef(null);
+  const containerRef = useRef(null);
+  const [size, setSize] = useState({w:1200,h:800});
+  const [selected, setSelected] = useState(null);
+  const [positions, setPositions] = useState(null);
+  const [dragging, setDragging] = useState(null);
+  const [hoveredNode, setHoveredNode] = useState(null);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const update = () => setSize({w:el.clientWidth,h:el.clientHeight});
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return ()=>ro.disconnect();
+  },[]);
+
+  useEffect(() => {
+    if (!size.w) return;
+    const nodes = ALL_NODES.map(n=>({...n}));
+    runForce(nodes, EDGES, size.w, size.h-80, 500);
+    const pos = {};
+    nodes.forEach(n=>{ pos[n.id]={x:n.x,y:n.y}; });
+    setPositions(pos);
+  },[size.w]);
+
+  const nodeMap = useMemo(()=>{const m={};ALL_NODES.forEach(n=>m[n.id]=n);return m;},[]);
+
+  // Connected nodes for hover highlight
+  const connectedIds = useMemo(()=>{
+    if (!hoveredNode) return null;
+    const set = new Set([hoveredNode]);
+    EDGES.forEach(([s,t])=>{
+      if(s===hoveredNode) set.add(t);
+      if(t===hoveredNode) set.add(s);
+    });
+    return set;
+  },[hoveredNode]);
+
+  // Predecessor completeness check
+  function predecessorsComplete(nodeId) {
+    const preds = EDGES.filter(([,t])=>t===nodeId).map(([s])=>s);
+    return preds.every(p=>{
+      const n=nodeMap[p];
+      if(!n||!n.trackable)return true;
+      return (progress[p]??0)===100;
+    });
+  }
+
+  function handleMouseDown(e, nodeId) {
+    e.preventDefault();
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    setDragging({ id:nodeId, startX:e.clientX-rect.left, startY:e.clientY-rect.top });
+  }
+
+  function handleMouseMove(e) {
+    if (!dragging) return;
+    const svg = svgRef.current;
+    const rect = svg.getBoundingClientRect();
+    const x = e.clientX-rect.left;
+    const y = e.clientY-rect.top;
+    setPositions(prev=>({...prev,[dragging.id]:{x,y}}));
+  }
+
+  function handleMouseUp() {
+    setDragging(null);
+  }
+
+  if (!positions) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100%',color:'#334155',fontSize:13}}>Calculating layout…</div>;
+
+  const selNode = selected ? nodeMap[selected] : null;
+  const selPct = selected ? (progress[selected]??0) : 0;
+
+  // Build path for curved edge
+  function edgePath(sx,sy,tx,ty) {
+    const mx=(sx+tx)/2, my=(sy+ty)/2;
+    const dx=tx-sx, dy=ty-sy;
+    const d=Math.sqrt(dx*dx+dy*dy)||1;
+    const cx=mx-dy*0.25, cy=my+dx*0.25;
+    return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`;
+  }
+
+  // Arrowhead marker def
+  const markerId = 'arrowhead';
+
+  return (
+    <div style={{display:'flex',height:'calc(100vh - 130px)',overflow:'hidden'}}>
+      {/* SVG canvas */}
+      <div ref={containerRef} style={{flex:1,position:'relative',overflow:'hidden'}}>
+        <svg ref={svgRef} width={size.w} height={size.h-80}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{display:'block',cursor:dragging?'grabbing':'default'}}>
+          <defs>
+            <marker id={markerId} markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+              <polygon points="0 0, 7 3.5, 0 7" fill="rgba(255,255,255,0.15)" />
+            </marker>
+          </defs>
+
+          {/* Layer bands */}
+          {[{l:0,label:'DATA SOURCES',y:0},{l:1,label:'SKILLS',y:.33},{l:2,label:'AGENTS',y:.66},{l:3,label:'APPS',y:1}].map((band,i)=>{
+            const bandH=(size.h-80)*0.25;
+            const bandY=(size.h-80)*band.l*0.33 - (i===3?0:0);
+            return (
+              <g key={band.l}>
+                <rect x={0} y={Math.max(0,(size.h-80)*band.l/3-bandH*.4)} width={size.w} height={bandH*.85}
+                  fill={`rgba(255,255,255,${[.008,.006,.01,.008][band.l]})`} />
+                <text x={8} y={(size.h-80)*band.l/3+12-(band.l===0?0:0)}
+                  fill="#1a3050" fontSize={8} fontWeight={700} letterSpacing={1.5}>{band.label}</text>
+              </g>
+            );
+          })}
+
+          {/* Edges */}
+          {EDGES.map(([sid,tid],i)=>{
+            const sp=positions[sid],tp=positions[tid];
+            if(!sp||!tp)return null;
+            const sn=nodeMap[sid],tn=nodeMap[tid];
+            const sr=nodeRadius(sn),tr=nodeRadius(tn);
+            // Trim endpoints to node circumference
+            const dx=tp.x-sp.x,dy=tp.y-sp.y;
+            const d=Math.sqrt(dx*dx+dy*dy)||1;
+            const sx=sp.x+(dx/d)*sr,sy=sp.y+(dy/d)*sr;
+            const tx=tp.x-(dx/d)*(tr+6),ty=tp.y-(dy/d)*(tr+6);
+            const isHighlit=hoveredNode&&connectedIds.has(sid)&&connectedIds.has(tid);
+            const isDimmed=hoveredNode&&!isHighlit;
+            return (
+              <path key={i} d={edgePath(sx,sy,tx,ty)}
+                fill="none"
+                stroke={isHighlit?'rgba(255,255,255,.5)':isDimmed?'rgba(255,255,255,.03)':'rgba(255,255,255,.1)'}
+                strokeWidth={isHighlit?1.5:0.8}
+                markerEnd={`url(#${markerId})`}
+                style={{transition:'stroke .2s,stroke-width .2s'}}
+              />
+            );
+          })}
+
+          {/* Nodes */}
+          {ALL_NODES.map(n=>{
+            const pos=positions[n.id];
+            if(!pos)return null;
+            const r=nodeRadius(n);
+            const pct=n.trackable?(progress[n.id]??0):100;
+            const circ=2*Math.PI*r;
+            const dash=circ*(pct/100);
+            const isSelected=selected===n.id;
+            const isHov=hoveredNode===n.id;
+            const isDimmed=hoveredNode&&!connectedIds.has(n.id)&&!isHov;
+            const isBlocked=n.trackable&&!predecessorsComplete(n.id)&&pct<100;
+            const ringColor=pct===100?'#4ade80':pct>0?'#fbbf24':'#e94560';
+
+            return (
+              <g key={n.id}
+                transform={`translate(${pos.x},${pos.y})`}
+                onMouseDown={e=>handleMouseDown(e,n.id)}
+                onClick={()=>setSelected(selected===n.id?null:n.id)}
+                onMouseEnter={()=>setHoveredNode(n.id)}
+                onMouseLeave={()=>setHoveredNode(null)}
+                style={{cursor:'pointer',opacity:isDimmed?.2:1,transition:'opacity .15s'}}
+              >
+                {/* Glow for selected */}
+                {isSelected&&<circle r={r+6} fill="none" stroke={n.color} strokeWidth={1.5} opacity={.35}/>}
+                {/* Base circle */}
+                <circle r={r} fill={`rgba(${hexToRgb(n.color)||'100,100,100'},.12)`}
+                  stroke={isSelected?n.color:isHov?n.color:'rgba(255,255,255,.12)'}
+                  strokeWidth={isSelected?2:isHov?1.5:1}/>
+                {/* Progress ring (trackable only) */}
+                {n.trackable&&(
+                  <circle r={r} fill="none" stroke={ringColor} strokeWidth={2.5}
+                    strokeDasharray={`${dash} ${circ-dash}`}
+                    strokeDashoffset={circ/4}
+                    strokeLinecap="round" opacity={.8}/>
+                )}
+                {/* Blocked indicator */}
+                {isBlocked&&<circle r={r+3} fill="none" stroke="#e94560" strokeWidth={1} strokeDasharray="3 3" opacity={.5}/>}
+                {/* Emoji or letter */}
+                <text textAnchor="middle" dominantBaseline="middle" fontSize={n.type==='source'?11:9} fill={n.color} fontWeight={700}>
+                  {n.type==='source'?n.emoji:n.name.substring(0,2).toUpperCase()}
+                </text>
+                {/* Label below */}
+                <text textAnchor="middle" y={r+10} fontSize={8} fill={isSelected||isHov?'#e8edf2':'#64748b'} fontWeight={isSelected?700:400}
+                  style={{transition:'fill .15s',pointerEvents:'none'}}>
+                  {n.name.length>14?n.name.substring(0,13)+'…':n.name}
+                </text>
+                {/* Pct badge (trackable) */}
+                {n.trackable&&pct>0&&(
+                  <text textAnchor="middle" y={r+19} fontSize={7} fill={ringColor} fontWeight={700}>{pct}%</text>
+                )}
+              </g>
+            );
+          })}
+        </svg>
+
+        {/* Legend */}
+        <div style={{position:'absolute',bottom:8,left:12,display:'flex',gap:12,alignItems:'center'}}>
+          {[['source','#64748b','Data Source'],['skill','#a78bfa','Skill'],['agent','#4ade80','Agent'],['app','#f97316','App']].map(([t,c,l])=>(
+            <div key={t} style={{display:'flex',alignItems:'center',gap:4}}>
+              <div style={{width:8,height:8,borderRadius:'50%',background:c,opacity:.7}}/>
+              <span style={{fontSize:9,color:'#334155'}}>{l}</span>
+            </div>
+          ))}
+          <div style={{display:'flex',alignItems:'center',gap:4}}>
+            <div style={{width:8,height:8,borderRadius:'50%',border:'1px dashed #e94560',opacity:.7}}/>
+            <span style={{fontSize:9,color:'#334155'}}>Blocked (predecessors incomplete)</span>
+          </div>
+          <span style={{fontSize:9,color:'#263d5a',marginLeft:8}}>Drag nodes · Click to inspect</span>
+        </div>
+      </div>
+
+      {/* Detail panel */}
+      {selNode && (
+        <div style={{width:260,background:'#0a1628',borderLeft:'1px solid rgba(255,255,255,.07)',padding:'16px',overflowY:'auto',display:'flex',flexDirection:'column',gap:12,animation:'fadeIn .15s ease'}}>
+          <div>
+            <div style={{fontSize:14,fontWeight:700,color:selNode.color,marginBottom:4}}>{selNode.name}</div>
+            <div style={{fontSize:9,color:'#334155',marginBottom:8,textTransform:'uppercase',letterSpacing:'.07em'}}>
+              {selNode.type} · {selNode.layer===0?'Data Source':selNode.layer===1?selNode.groupLabel:selNode.fleet||''} {selNode.schedule&&`· ${selNode.schedule}`}
+            </div>
+            <p style={{fontSize:11,color:'#64748b',lineHeight:1.55}}>{selNode.desc||selNode.fn||selNode.trigger||''}</p>
+          </div>
+          {selNode.trackable&&(
+            <div style={{background:'rgba(255,255,255,.03)',border:'1px solid rgba(255,255,255,.08)',borderRadius:8,padding:'12px',display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{fontSize:9,color:'#334155',fontWeight:700,letterSpacing:'.06em'}}>COMPLETION</div>
+              <PCtrl id={selNode.id} pct={selPct} onSet={onSet} />
+              {!predecessorsComplete(selNode.id)&&selPct<100&&(
+                <div style={{fontSize:9,color:'#e94560',background:'rgba(233,69,96,.1)',border:'1px solid rgba(233,69,96,.2)',borderRadius:5,padding:'5px 8px'}}>
+                  ⚠ Predecessors incomplete
+                </div>
+              )}
+            </div>
+          )}
+          {/* Predecessors */}
+          {(()=>{
+            const preds=EDGES.filter(([,t])=>t===selNode.id).map(([s])=>nodeMap[s]).filter(Boolean);
+            const succs=EDGES.filter(([s])=>s===selNode.id).map(([,t])=>nodeMap[t]).filter(Boolean);
+            return (
+              <>
+                {preds.length>0&&(
+                  <div>
+                    <div style={{fontSize:9,color:'#334155',fontWeight:700,letterSpacing:'.06em',marginBottom:5}}>PREDECESSORS ({preds.length})</div>
+                    {preds.map(p=>{
+                      const pp=progress[p.id]??0;
+                      return <div key={p.id} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+                        <div style={{width:5,height:5,borderRadius:'50%',background:p.trackable?pctColor(pp):'#334155',flexShrink:0}}/>
+                        <span style={{fontSize:10,color:'#94a3b8',flex:1}}>{p.name}</span>
+                        {p.trackable&&<span style={{fontSize:9,color:pctColor(pp),fontWeight:700}}>{pp}%</span>}
+                      </div>;
+                    })}
+                  </div>
+                )}
+                {succs.length>0&&(
+                  <div>
+                    <div style={{fontSize:9,color:'#334155',fontWeight:700,letterSpacing:'.06em',marginBottom:5}}>SUCCESSORS ({succs.length})</div>
+                    {succs.map(s=>{
+                      const sp=progress[s.id]??0;
+                      return <div key={s.id} style={{display:'flex',alignItems:'center',gap:6,padding:'3px 0',borderBottom:'1px solid rgba(255,255,255,.04)'}}>
+                        <div style={{width:5,height:5,borderRadius:'50%',background:s.trackable?pctColor(sp):'#334155',flexShrink:0}}/>
+                        <span style={{fontSize:10,color:'#94a3b8',flex:1}}>{s.name}</span>
+                        {s.trackable&&<span style={{fontSize:9,color:pctColor(sp),fontWeight:700}}>{sp}%</span>}
+                      </div>;
+                    })}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Convert hex to rgb for rgba
+function hexToRgb(hex) {
+  const r=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return r?`${parseInt(r[1],16)},${parseInt(r[2],16)},${parseInt(r[3],16)}`:null;
+}
+
+/* ─── ROOT APP ──────────────────────────────────────────────────── */
+function App() {
+  const [progress, setProgress] = useState(load);
+  const [view, setView] = useState('network');
+
+  function onSet(id, pct) {
+    setProgress(prev=>{const next={...prev,[id]:pct};save(next);return next;});
+  }
+
+  const total = ALL_TRACKABLE.length;
+  const complete = ALL_TRACKABLE.filter(i=>(progress[i.id]??0)===100).length;
+  const inProg = ALL_TRACKABLE.filter(i=>{const p=progress[i.id]??0;return p>0&&p<100;}).length;
+  const avg = Math.round(ALL_TRACKABLE.reduce((s,i)=>s+(progress[i.id]??0),0)/total);
+
+  const DEADLINE = new Date('2026-06-01T21:00:00+10:00');
+  const [now] = useState(new Date());
+  const remain = Math.max(0,DEADLINE-now);
+  const days = Math.floor(remain/86400000);
+  const hours = Math.floor((remain%86400000)/3600000);
+
+  return (
+    <div style={{minHeight:'100vh',display:'flex',flexDirection:'column'}}>
+      {/* Header */}
+      <header style={{background:'linear-gradient(135deg,#0d1b2a,#1a2e44)',borderBottom:'1px solid rgba(255,255,255,.06)',padding:'12px 20px',flexShrink:0}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:12,flexWrap:'wrap'}}>
+          <div style={{display:'flex',alignItems:'center',gap:16}}>
+            <div>
+              <div style={{fontSize:15,fontWeight:700,letterSpacing:'-.02em'}}>⬡ Personal OS — Fleet Tracker</div>
+              <div style={{fontSize:10,color:'#334155',marginTop:1}}>{total} tracked · {INPUTS.length} sources · auto-saved</div>
+            </div>
+            {/* Tab switcher */}
+            <div style={{display:'flex',gap:4,background:'rgba(255,255,255,.04)',borderRadius:10,padding:3}}>
+              {[['network','🕸 Network'],['flowchart','📊 Flowchart']].map(([v,l])=>(
+                <button key={v} className={`tab-btn${view===v?' active':''}`} onClick={()=>setView(v)}>{l}</button>
+              ))}
+            </div>
+          </div>
+          <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            {[
+              {label:'Overall',val:`${avg}%`,color:avg>=75?'#4ade80':avg>=40?'#fbbf24':'#e94560'},
+              {label:'Complete',val:`${complete}/${total}`,color:'#4ade80'},
+              {label:'In Prog',val:inProg,color:'#fbbf24'},
+              {label:`${days}d ${hours}h`,val:'to deadline',color:days<=2?'#e94560':days<=5?'#fbbf24':'#4ade80'},
+            ].map(s=>(
+              <div key={s.label} style={{background:'rgba(255,255,255,.04)',border:'1px solid rgba(255,255,255,.07)',borderRadius:8,padding:'5px 12px',textAlign:'center'}}>
+                <div style={{fontSize:14,fontWeight:700,color:s.color}}>{s.val}</div>
+                <div style={{fontSize:8,color:'#334155'}}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+        {/* Progress bar */}
+        <div style={{height:3,borderRadius:2,background:'rgba(255,255,255,.04)',overflow:'hidden',marginTop:8}}>
+          <div style={{height:'100%',width:`${avg}%`,background:'linear-gradient(90deg,#e94560,#f59e0b,#4ade80)',transition:'width .4s'}}/>
+        </div>
+      </header>
+
+      {/* View */}
+      {view==='network'
+        ? <NetworkView progress={progress} onSet={onSet} />
+        : <FlowchartView progress={progress} onSet={onSet} />
+      }
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

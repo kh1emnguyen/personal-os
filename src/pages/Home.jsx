@@ -50,6 +50,14 @@ const cards = [
     external: true,
   },
   {
+    title: 'Fleet Tracker',
+    description: 'Interactive visualization of the Personal OS agent fleet. Pan, zoom, and inspect 44 nodes with 90+ relationship edges. View agent dependencies, skill groups, inputs, and apps in a force-directed network layout.',
+    accent: '#8b5cf6',
+    status: 'live',
+    href: '/fleet-tracker.html',
+    external: false,
+  },
+  {
     title: 'Nawarries Hub',
     description: 'BMSS internal operations — Slow Movers console (~290 SKUs, margin-floor promo pricing) and Swing Trade Dashboard (4,362 SKUs vs Duncans). Arbitrage pricing, quotable discount column.',
     accent: '#e94560',
