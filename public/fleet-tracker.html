@@ -311,17 +311,15 @@ function nodeRadius(n) {
   return 18;
 }
 
-function runForce(nodes, links, W, H, iterations=400) {
-  // Initialize positions in layer bands
+function runForce(nodes, links, W, H, iterations=700) {
+  // Spread initial positions evenly across the full canvas
   const layerCounts = {};
   nodes.forEach(n => { layerCounts[n.layer] = (layerCounts[n.layer]||0)+1; });
-  const layerIdx = {};
-  nodes.forEach(n => { layerIdx[n.id] = layerIdx[n.id]!==undefined ? layerIdx[n.id] : 0; });
   const seen = {};
   nodes.forEach(n => {
     seen[n.layer] = seen[n.layer]||0;
-    n.x = (W * 0.1) + (W * 0.8) * (seen[n.layer]+0.5) / layerCounts[n.layer];
-    n.y = (H * 0.08) + (H * 0.84) * n.layer / 3;
+    n.x = (W * 0.05) + (W * 0.9) * (seen[n.layer]+0.5) / layerCounts[n.layer];
+    n.y = (H * 0.06) + (H * 0.88) * n.layer / 3;
     seen[n.layer]++;
     n.vx = 0; n.vy = 0;
   });
@@ -330,46 +328,52 @@ function runForce(nodes, links, W, H, iterations=400) {
   nodes.forEach(n => nodeMap[n.id] = n);
 
   for (let iter = 0; iter < iterations; iter++) {
-    const alpha = 1 - iter/iterations;
-    // Repulsion
+    const alpha = Math.pow(1 - iter/iterations, 0.6); // slower cool-down = more spread
+    // Strong repulsion — no distance cap so distant nodes still push apart
     for (let i=0;i<nodes.length;i++) {
       for (let j=i+1;j<nodes.length;j++) {
         const a=nodes[i],b=nodes[j];
-        let dx=b.x-a.x, dy=b.y-a.y;
+        const dx=b.x-a.x, dy=b.y-a.y;
         const d=Math.sqrt(dx*dx+dy*dy)||0.01;
-        const minDist = nodeRadius(a)+nodeRadius(b)+16;
-        if (d < minDist*3) {
-          const f = Math.min(3000/(d*d), 30) * alpha;
-          a.vx-=f*dx/d; a.vy-=f*dy/d;
-          b.vx+=f*dx/d; b.vy+=f*dy/d;
-        }
+        const f = Math.min(14000/(d*d), 80) * alpha;
+        a.vx-=f*dx/d; a.vy-=f*dy/d;
+        b.vx+=f*dx/d; b.vy+=f*dy/d;
       }
     }
-    // Link spring
+    // Link spring — longer ideal distances so linked nodes stay readable
     links.forEach(([sid,tid]) => {
       const s=nodeMap[sid],t=nodeMap[tid];
       if(!s||!t)return;
       const dx=t.x-s.x, dy=t.y-s.y;
       const d=Math.sqrt(dx*dx+dy*dy)||0.01;
-      const ideal = 100 + Math.abs(s.layer-t.layer)*30;
-      const f=(d-ideal)*0.04*alpha;
+      const ideal = 220 + Math.abs(s.layer-t.layer)*80;
+      const f=(d-ideal)*0.025*alpha;
       s.vx+=f*dx/d; s.vy+=f*dy/d;
       t.vx-=f*dx/d; t.vy-=f*dy/d;
     });
-    // Layer gravity (keep nodes near their layer band)
+    // Gentle layer gravity — enough to band by layer, not enough to cluster
     nodes.forEach(n => {
-      const targetY = (H*0.08)+(H*0.84)*n.layer/3;
-      n.vy += (targetY - n.y) * 0.04 * alpha;
-      n.vx += (W/2 - n.x) * 0.002;
+      const targetY = (H*0.06)+(H*0.88)*n.layer/3;
+      n.vy += (targetY - n.y) * 0.008 * alpha;
+      n.vx += (W/2 - n.x) * 0.0003;
     });
-    // Integrate
+    // Integrate with low damping so momentum carries nodes further
     nodes.forEach(n => {
-      n.vx*=0.75; n.vy*=0.75;
-      n.x=Math.max(40,Math.min(W-40,n.x+n.vx));
-      n.y=Math.max(40,Math.min(H-40,n.y+n.vy));
+      n.vx*=0.82; n.vy*=0.82;
+      n.x=Math.max(60,Math.min(W-60,n.x+n.vx));
+      n.y=Math.max(60,Math.min(H-60,n.y+n.vy));
     });
   }
   return nodes;
+}
+
+function computeFit(positions, svgW, svgH, pad=80) {
+  const xs=Object.values(positions).map(p=>p.x);
+  const ys=Object.values(positions).map(p=>p.y);
+  const minX=Math.min(...xs)-pad, maxX=Math.max(...xs)+pad;
+  const minY=Math.min(...ys)-pad, maxY=Math.max(...ys)+pad;
+  const s=Math.min(svgW/(maxX-minX), svgH/(maxY-minY), 1);
+  return { x:(svgW-(maxX-minX)*s)/2-minX*s, y:(svgH-(maxY-minY)*s)/2-minY*s, s };
 }
 
 function NetworkView({ progress, onSet }) {
@@ -382,6 +386,7 @@ function NetworkView({ progress, onSet }) {
   const [panning, setPanning] = useState(null);      // viewport pan
   const [hoveredNode, setHoveredNode] = useState(null);
   const [vp, setVp] = useState({x:0,y:0,s:1});      // viewport: offset + scale
+  const [fitVp, setFitVp] = useState({x:0,y:0,s:1}); // saved fit-to-all view
 
   // Resize observer
   useEffect(() => {
@@ -394,14 +399,18 @@ function NetworkView({ progress, onSet }) {
     return ()=>ro.disconnect();
   },[]);
 
-  // Force layout
+  // Force layout — run on 4× canvas so nodes have room to spread, then fit viewport
   useEffect(() => {
     if (!size.w) return;
+    const svgH = size.h - 80;
     const nodes = ALL_NODES.map(n=>({...n}));
-    runForce(nodes, EDGES, size.w, size.h-80, 500);
+    runForce(nodes, EDGES, size.w * 4, svgH * 3, 700);
     const pos = {};
     nodes.forEach(n=>{ pos[n.id]={x:n.x,y:n.y}; });
     setPositions(pos);
+    const fit = computeFit(pos, size.w, svgH);
+    setVp(fit);
+    setFitVp(fit);
   },[size.w]);
 
   // Non-passive wheel listener (required so preventDefault works)
@@ -433,11 +442,11 @@ function NetworkView({ progress, onSet }) {
       else if (e.key==='ArrowDown')            { e.preventDefault(); setVp(v=>({...v,y:v.y-step})); }
       else if (e.key==='='||e.key==='+')       setVp(v=>({...v,s:Math.min(4,v.s*1.2)}));
       else if (e.key==='-')                    setVp(v=>({...v,s:Math.max(0.15,v.s/1.2)}));
-      else if (e.key==='0')                    setVp({x:0,y:0,s:1});
+      else if (e.key==='0')                    setVp(fitVp);
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, []);
+  }, [fitVp]);
 
   const nodeMap = useMemo(()=>{const m={};ALL_NODES.forEach(n=>m[n.id]=n);return m;},[]);
 
@@ -587,7 +596,7 @@ function NetworkView({ progress, onSet }) {
         <div style={{position:'absolute',top:10,right:12,display:'flex',flexDirection:'column',gap:4,zIndex:10}}>
           <button style={zBtn()} onClick={()=>setVp(v=>({...v,s:Math.min(4,v.s*1.2)}))} title="Zoom in (+)">+</button>
           <button style={zBtn()} onClick={()=>setVp(v=>({...v,s:Math.max(0.15,v.s/1.2)}))} title="Zoom out (−)">−</button>
-          <button style={zBtn({fontSize:14})} onClick={()=>setVp({x:0,y:0,s:1})} title="Reset view (0)">⌂</button>
+          <button style={zBtn({fontSize:14})} onClick={()=>setVp(fitVp)} title="Fit all nodes (0)">⌂</button>
           <div style={{fontSize:9,color:'#334155',textAlign:'center',marginTop:2}}>{Math.round(vp.s*100)}%</div>
         </div>
 
