@@ -681,9 +681,32 @@ function hexToRgb(hex) {
 function App() {
   const [progress, setProgress] = useState(load);
   const [view, setView] = useState('network');
+  const importRef = useRef(null);
 
   function onSet(id, pct) {
     setProgress(prev=>{const next={...prev,[id]:pct};save(next);return next;});
+  }
+
+  function handleExport() {
+    const blob = new Blob([JSON.stringify(progress, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download='fleet-progress.json'; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleImport(e) {
+    const file = e.target.files[0]; if(!file)return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target.result);
+        if(typeof parsed==='object'&&parsed!==null){
+          setProgress(prev=>{const next={...prev,...parsed};save(next);return next;});
+          alert(`Imported ${Object.keys(parsed).length} progress values.`);
+        }
+      } catch { alert('Invalid JSON file.'); }
+    };
+    reader.readAsText(file); e.target.value='';
   }
 
   const total = ALL_TRACKABLE.length;
@@ -715,6 +738,10 @@ function App() {
             </div>
           </div>
           <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+            <input ref={importRef} type="file" accept=".json" style={{display:'none'}} onChange={handleImport}/>
+            {[{label:'Export',fn:handleExport,color:'#38bdf8'},{label:'Import',fn:()=>importRef.current.click(),color:'#fbbf24'}].map(b=>(
+              <button key={b.label} onClick={b.fn} style={{padding:'4px 12px',borderRadius:7,border:`1px solid ${b.color}44`,background:`${b.color}11`,color:b.color,cursor:'pointer',fontSize:11,fontWeight:600}}>{b.label}</button>
+            ))}
             {[
               {label:'Overall',val:`${avg}%`,color:avg>=75?'#4ade80':avg>=40?'#fbbf24':'#e94560'},
               {label:'Complete',val:`${complete}/${total}`,color:'#4ade80'},

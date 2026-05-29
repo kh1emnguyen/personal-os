@@ -74,6 +74,14 @@ const cards = [
     external: true,
   },
   {
+    title: 'Fleet Tracker',
+    description: 'Live network map of the full agent fleet — 44 nodes across data sources, skills, agents, and apps. Typed predecessor/successor edges (feeds · enables · triggers · passes · writes). Track build progress per node.',
+    accent: '#6366f1',
+    status: 'live',
+    href: 'https://kh1emnguyen.github.io/fleet-tracker/',
+    external: true,
+  },
+  {
     title: 'Financial OS',
     description: 'FY tax position (property + BMSS salary + Lenexa), depreciation schedule, $500/wk loan tracker, salary optimisation.',
     accent: '#fbbf24',
@@ -104,9 +112,9 @@ const cards = [
 ]
 
 const stats = [
-  { label: 'Live tools',       value: '6' },
+  { label: 'Live tools',       value: '7' },
   { label: 'Tools building',   value: '2' },
-  { label: 'Repos on GitHub',  value: '6' },
+  { label: 'Repos on GitHub',  value: '7' },
   { label: 'Supabase vectors', value: '~3,500' },
 ]
 
