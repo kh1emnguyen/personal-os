@@ -26,14 +26,6 @@ const cards = [
     external: false,
   },
   {
-    title: 'Weekly Check-In',
-    description: 'Sunday night form — movie watched, Garmin sleep data, food, training. A co-work agent turns your answers into vault notes by Monday morning.',
-    accent: '#a78bfa',
-    status: 'building',
-    href: '/check-in',
-    external: false,
-  },
-  {
     title: 'Pulse',
     description: 'Passive life capture. ~8 random check-ins a day (under a minute each) — tap habits, log a meal in plain English, jot one rotating note (media, movement, feelings, to-dos). Feeds Health OS and the background life-state agent.',
     accent: '#38bdf8',
