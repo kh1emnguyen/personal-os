@@ -20,9 +20,15 @@ function fmtTime(epoch) {
   return new Date(epoch).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
 }
 
+// Back-compat: older configs used `questions` for the binary habits.
+function getHabits(config) {
+  return config.habits || config.questions || []
+}
+
 // Spread pings_per_day across the window in equal buckets, randomised within
 // each bucket, enforcing min_gap. Random by design — capture must not be
-// predictable enough to pre-plan around.
+// predictable enough to pre-plan around. Each ping carries its index so the
+// modal can rotate which reflection prompt it surfaces.
 function generateSchedule(config) {
   const startM = parseHM(config.window_start)
   const endM = parseHM(config.window_end)
@@ -41,13 +47,13 @@ function generateSchedule(config) {
   return mins.map((m, idx) => {
     const d = new Date()
     d.setHours(0, Math.round(m), 0, 0)
-    return { id: `${todayKey()}-${idx}`, at: d.getTime(), fired: false, answered: false }
+    return { id: `${todayKey()}-${idx}`, idx, at: d.getTime(), fired: false, answered: false }
   })
 }
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(`pulse-v1-${todayKey()}`)
+    const raw = localStorage.getItem(`pulse-v2-${todayKey()}`)
     return raw ? JSON.parse(raw) : null
   } catch {
     return null
@@ -56,7 +62,7 @@ function loadState() {
 
 function saveState(state) {
   try {
-    localStorage.setItem(`pulse-v1-${todayKey()}`, JSON.stringify(state))
+    localStorage.setItem(`pulse-v2-${todayKey()}`, JSON.stringify(state))
   } catch {
     /* storage unavailable — in-memory state still works for this session */
   }
@@ -103,7 +109,7 @@ export default function Pulse() {
   const fireNotification = useCallback(() => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
     const opts = {
-      body: 'Tap to log — two seconds, then back to work.',
+      body: 'Tap to log — habits, a meal, or a quick note. Under a minute.',
       tag: 'pulse-ping',
       renotify: true,
       icon: `${import.meta.env.BASE_URL}favicon.svg`,
@@ -118,8 +124,6 @@ export default function Pulse() {
   }, [])
 
   // The tick loop: every TICK_MS, fire any ping whose time has passed.
-  // Interval-poll rather than per-ping setTimeout so it survives background
-  // tab throttling and navigation away from this page.
   useEffect(() => {
     if (!armed) return
     function tick() {
@@ -139,8 +143,7 @@ export default function Pulse() {
     return () => clearInterval(iv)
   }, [armed, fireNotification])
 
-  // A tapped notification (from the SW) just needs the tab focused — the tick
-  // loop already surfaced the form. Nothing else to do.
+  // A tapped notification (from the SW) just needs the tab focused.
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return
     const onMsg = (e) => {
@@ -178,16 +181,58 @@ export default function Pulse() {
     setPending(null)
   }
 
-  // Write the ping outcome to Supabase. Answered → responses object; skipped →
-  // null responses so the pulse-updater agent can count it as a miss.
-  async function recordPing(ping, responses) {
+  // Write the ping outcome. Habits go to habit_pings (with meal:true folded in
+  // so Health OS adherence still works); a logged meal goes to `meals`; an
+  // answered reflection goes to `reflections`. Skipped pings write a null-
+  // responses habit_pings row so the updater agent counts the miss.
+  async function recordPing(ping, payload) {
     if (supabase) {
-      await supabase.from('habit_pings').insert({
-        pinged_at: new Date(ping.at).toISOString(),
-        answered_at: responses ? new Date().toISOString() : null,
-        responses: responses || null,
-        window_date: todayKey(),
-      })
+      const nowIso = new Date().toISOString()
+      const writes = []
+
+      if (payload) {
+        const responses = { ...payload.habits }
+        if (payload.meal) responses.meal = true
+        writes.push(
+          supabase.from('habit_pings').insert({
+            pinged_at: new Date(ping.at).toISOString(),
+            answered_at: nowIso,
+            responses,
+            window_date: todayKey(),
+          }),
+        )
+        if (payload.meal) {
+          writes.push(
+            supabase.from('meals').insert({
+              logged_at: nowIso,
+              meal_type: payload.meal.type,
+              description: payload.meal.description || null,
+              window_date: todayKey(),
+            }),
+          )
+        }
+        if (payload.reflection) {
+          writes.push(
+            supabase.from('reflections').insert({
+              logged_at: nowIso,
+              prompt_id: payload.reflection.id,
+              prompt_label: payload.reflection.label,
+              response: payload.reflection.response,
+              window_date: todayKey(),
+            }),
+          )
+        }
+      } else {
+        writes.push(
+          supabase.from('habit_pings').insert({
+            pinged_at: new Date(ping.at).toISOString(),
+            answered_at: null,
+            responses: null,
+            window_date: todayKey(),
+          }),
+        )
+      }
+      try { await Promise.all(writes) } catch { /* keep UI responsive on write failure */ }
     }
     markAnswered(ping)
   }
@@ -210,10 +255,10 @@ export default function Pulse() {
       <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '28px 24px 60px' }}>
 
         <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.7, marginBottom: 24 }}>
-          Pulse fires {config.pings_per_day} random check-ins between{' '}
-          {config.window_start} and {config.window_end}. Each one is a two-second
-          tap — log it and return to deep work. Capture happens inside the flow,
-          not at the edges of the day.
+          Pulse fires {config.pings_per_day} check-ins at random between{' '}
+          {config.window_start} and {config.window_end} — roughly one an hour. Each is under a
+          minute: tap your habits, log a meal in plain English, jot one quick note. Capture happens
+          inside the day, not at the edges of it.
         </p>
 
         {/* Permission */}
@@ -245,21 +290,33 @@ export default function Pulse() {
                   ? (upcoming > 0
                       ? `${upcoming} ping${upcoming > 1 ? 's' : ''} left · next ~${nextPing ? fmtTime(nextPing.at) : '—'}`
                       : 'All pings done for today.')
-                  : 'Arm at the start of your deep-work block.'}
+                  : 'Arm in the morning to capture across the day.'}
               </div>
             </div>
-            <button
-              onClick={armed ? disarm : arm}
-              style={{
-                background: armed ? 'rgba(255,255,255,0.06)' : ACCENT,
-                color: armed ? 'var(--muted)' : '#0a0a0a',
-                border: armed ? '1px solid var(--card-border)' : 'none',
-                borderRadius: 9, padding: '10px 20px', fontWeight: 700, fontSize: 13,
-                cursor: 'pointer', flexShrink: 0,
-              }}
-            >
-              {armed ? 'Stop' : 'Arm session'}
-            </button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {armed && (
+                <button onClick={() => setPending(scheduleRef.current.find((p) => !p.answered) || { id: 'adhoc', idx: 0, at: Date.now() })}
+                  style={{
+                    background: 'rgba(255,255,255,0.06)', color: ACCENT,
+                    border: `1px solid ${ACCENT}44`, borderRadius: 9,
+                    padding: '10px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+                  }}>
+                  Log now
+                </button>
+              )}
+              <button
+                onClick={armed ? disarm : arm}
+                style={{
+                  background: armed ? 'rgba(255,255,255,0.06)' : ACCENT,
+                  color: armed ? 'var(--muted)' : '#0a0a0a',
+                  border: armed ? '1px solid var(--card-border)' : 'none',
+                  borderRadius: 9, padding: '10px 20px', fontWeight: 700, fontSize: 13,
+                  cursor: 'pointer', flexShrink: 0,
+                }}
+              >
+                {armed ? 'Stop' : 'Arm session'}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -298,7 +355,7 @@ export default function Pulse() {
         <PingModal
           ping={pending}
           config={config}
-          onSave={(responses) => recordPing(pending, responses)}
+          onSave={(payload) => recordPing(pending, payload)}
           onSkip={() => recordPing(pending, null)}
         />
       )}
@@ -306,73 +363,142 @@ export default function Pulse() {
   )
 }
 
-// ---- micro-form modal ------------------------------------------------------
+// ---- the in-flow capture modal --------------------------------------------
 
 function PingModal({ ping, config, onSave, onSkip }) {
+  const habits = getHabits(config)
+  const prompts = config.reflection?.prompts || []
+  const prompt = prompts.length ? prompts[ping.idx % prompts.length] : null
+  const mealCfg = config.meal || { types: [] }
+
   const [picked, setPicked] = useState({})
+  const [mealType, setMealType] = useState(null)
+  const [mealText, setMealText] = useState('')
+  const [reflText, setReflText] = useState('')
+  const [engaged, setEngaged] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(config.auto_dismiss_seconds)
 
+  // Countdown only runs until the user engages — typing or selecting pauses it,
+  // so the relaxed "under a minute" capture never cuts off mid-thought.
   useEffect(() => {
+    if (engaged) return
     if (secondsLeft <= 0) { onSkip(); return }
     const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000)
     return () => clearTimeout(t)
-  }, [secondsLeft, onSkip])
+  }, [secondsLeft, engaged, onSkip])
 
   function toggle(id) {
+    setEngaged(true)
     setPicked((p) => ({ ...p, [id]: !p[id] }))
   }
 
   function save() {
-    const responses = {}
-    for (const q of config.questions) responses[q.id] = !!picked[q.id]
-    onSave(responses)
+    const habitResponses = {}
+    for (const h of habits) habitResponses[h.id] = !!picked[h.id]
+    const payload = {
+      habits: habitResponses,
+      meal: mealType ? { type: mealType, description: mealText.trim() } : null,
+      reflection: prompt && reflText.trim() ? { id: prompt.id, label: prompt.label, response: reflText.trim() } : null,
+    }
+    onSave(payload)
   }
 
   return (
     <div style={{
       position: 'fixed', inset: 0, background: 'rgba(8,12,20,0.82)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      zIndex: 100, padding: 20,
+      zIndex: 100, padding: 16, overflow: 'auto',
     }}>
       <div style={{
-        width: '100%', maxWidth: 380, background: '#0f1d30',
+        width: '100%', maxWidth: 400, background: '#0f1d30',
         border: `1px solid ${ACCENT}44`, borderRadius: 16,
-        padding: '24px 24px 20px',
+        padding: '22px 22px 18px', maxHeight: '92vh', overflow: 'auto',
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Quick pulse</h2>
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>{secondsLeft}s</span>
+          <span style={{ fontSize: 11, color: engaged ? ACCENT : 'var(--muted)' }}>
+            {engaged ? 'take your time' : `${secondsLeft}s`}
+          </span>
         </div>
         <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>
-          Tap what's true. Anything untapped is logged as no.
+          Tap what's true. A meal or a note are optional — skip whatever doesn't apply.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 9, marginBottom: 18 }}>
-          {config.questions.map((q) => {
-            const on = !!picked[q.id]
-            return (
-              <button
-                key={q.id}
-                onClick={() => toggle(q.id)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 11,
-                  background: on ? `${ACCENT}1f` : 'rgba(255,255,255,0.04)',
-                  border: `1px solid ${on ? ACCENT : 'rgba(255,255,255,0.09)'}`,
-                  borderRadius: 10, padding: '13px 15px', cursor: 'pointer',
-                  transition: 'background 0.12s, border-color 0.12s',
-                }}
-              >
-                <span style={{ fontSize: 18 }}>{q.icon}</span>
-                <span style={{ fontSize: 14, color: 'var(--text)', flex: 1, textAlign: 'left' }}>{q.label}</span>
-                <span style={{ fontSize: 13, color: on ? ACCENT : 'var(--muted)', fontWeight: 600 }}>
-                  {on ? 'yes' : 'no'}
-                </span>
-              </button>
-            )
-          })}
-        </div>
+        {/* Habits */}
+        <Group label="Habits">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {habits.map((h) => {
+              const on = !!picked[h.id]
+              return (
+                <button
+                  key={h.id}
+                  onClick={() => toggle(h.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 11,
+                    background: on ? `${ACCENT}1f` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${on ? ACCENT : 'rgba(255,255,255,0.09)'}`,
+                    borderRadius: 10, padding: '11px 14px', cursor: 'pointer',
+                  }}
+                >
+                  <span style={{ fontSize: 17 }}>{h.icon}</span>
+                  <span style={{ fontSize: 14, color: 'var(--text)', flex: 1, textAlign: 'left' }}>{h.label}</span>
+                  <span style={{ fontSize: 13, color: on ? ACCENT : 'var(--muted)', fontWeight: 600 }}>{on ? 'yes' : 'no'}</span>
+                </button>
+              )
+            })}
+          </div>
+        </Group>
 
-        <div style={{ display: 'flex', gap: 9 }}>
+        {/* Meal */}
+        <Group label="Log a meal">
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: mealType ? 10 : 0 }}>
+            {mealCfg.types.map((t) => {
+              const on = mealType === t
+              return (
+                <button
+                  key={t}
+                  onClick={() => { setEngaged(true); setMealType(on ? null : t) }}
+                  style={{
+                    background: on ? `${ACCENT}1f` : 'rgba(255,255,255,0.04)',
+                    border: `1px solid ${on ? ACCENT : 'rgba(255,255,255,0.09)'}`,
+                    color: on ? ACCENT : 'var(--text)', borderRadius: 20,
+                    padding: '7px 14px', fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >{t}</button>
+              )
+            })}
+          </div>
+          {mealType && (
+            <textarea
+              value={mealText}
+              onChange={(e) => { setEngaged(true); setMealText(e.target.value) }}
+              onFocus={() => setEngaged(true)}
+              placeholder={mealCfg.placeholder}
+              rows={2}
+              style={textareaStyle}
+            />
+          )}
+        </Group>
+
+        {/* Reflection (rotates per ping) */}
+        {prompt && (
+          <Group label="One quick note">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 7 }}>
+              <span style={{ fontSize: 16 }}>{prompt.icon}</span>
+              <span style={{ fontSize: 13, color: 'var(--text)', fontWeight: 600 }}>{prompt.label}</span>
+            </div>
+            <textarea
+              value={reflText}
+              onChange={(e) => { setEngaged(true); setReflText(e.target.value) }}
+              onFocus={() => setEngaged(true)}
+              placeholder={prompt.placeholder}
+              rows={2}
+              style={textareaStyle}
+            />
+          </Group>
+        )}
+
+        <div style={{ display: 'flex', gap: 9, marginTop: 4 }}>
           <button onClick={onSkip} style={{
             flex: 1, background: 'rgba(255,255,255,0.04)',
             border: '1px solid rgba(255,255,255,0.09)', borderRadius: 9,
@@ -384,6 +510,22 @@ function PingModal({ ping, config, onSave, onSkip }) {
           }}>Log it</button>
         </div>
       </div>
+    </div>
+  )
+}
+
+const textareaStyle = {
+  width: '100%', background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.09)', borderRadius: 9,
+  padding: '10px 12px', color: '#e8edf2', fontSize: 13.5,
+  fontFamily: 'var(--font-sans)', lineHeight: 1.55, resize: 'vertical',
+}
+
+function Group({ label, children }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', color: 'rgba(232,237,242,0.4)', marginBottom: 8 }}>{label}</div>
+      {children}
     </div>
   )
 }

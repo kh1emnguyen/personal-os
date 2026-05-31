@@ -35,7 +35,7 @@ const cards = [
   },
   {
     title: 'Pulse',
-    description: 'Passive habit capture. Random two-second check-ins fire during deep-work hours — meals, teeth, skincare — logged without breaking focus. Feeds the background life-state agent.',
+    description: 'Passive life capture. ~8 random check-ins a day (under a minute each) — tap habits, log a meal in plain English, jot one rotating note (media, movement, feelings, to-dos). Feeds Health OS and the background life-state agent.',
     accent: '#38bdf8',
     status: 'building',
     href: '/pulse',

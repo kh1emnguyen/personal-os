@@ -1,12 +1,27 @@
 {
-  "window_start": "09:30",
-  "window_end": "17:00",
-  "pings_per_day": 4,
+  "window_start": "08:00",
+  "window_end": "21:00",
+  "pings_per_day": 8,
   "min_gap_minutes": 45,
-  "auto_dismiss_seconds": 30,
-  "questions": [
-    { "id": "meal",     "label": "Ate a meal",   "icon": "🍽️" },
-    { "id": "teeth",    "label": "Brushed teeth", "icon": "🪥" },
-    { "id": "skincare", "label": "Skincare",     "icon": "🧴" }
-  ]
+  "auto_dismiss_seconds": 60,
+  "habits": [
+    { "id": "teeth",        "label": "Brushed teeth", "icon": "🪥" },
+    { "id": "skincare",     "label": "Skincare",      "icon": "🧴" },
+    { "id": "isotretinoin", "label": "Isotretinoin",  "icon": "💊" },
+    { "id": "vitamind",     "label": "Vitamin D3",    "icon": "☀️" }
+  ],
+  "meal": {
+    "types": ["Breakfast", "Lunch", "Snack", "Dinner"],
+    "placeholder": "What and roughly how much — plain English. e.g. two eggs on toast + flat white"
+  },
+  "reflection": {
+    "prompts": [
+      { "id": "media",      "label": "Watched · read · listened",  "icon": "🎬", "placeholder": "A film, book, podcast, article…" },
+      { "id": "exercise",   "label": "Movement today",             "icon": "🏃", "placeholder": "Run, gym, walk — or a rest day" },
+      { "id": "selfcare",   "label": "Self-care",                  "icon": "🌿", "placeholder": "Anything you did for yourself" },
+      { "id": "feelings",   "label": "How you're feeling",         "icon": "💭", "placeholder": "A sentence or two" },
+      { "id": "activities", "label": "What you got up to",         "icon": "🎯", "placeholder": "Notable moments, people, work" },
+      { "id": "todos",      "label": "On your mind · to-do",       "icon": "📝", "placeholder": "What's nagging or next" }
+    ]
+  }
 }
