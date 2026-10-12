@@ -1,6 +1,18 @@
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase.js'
+import { useSession, signOut } from '../lib/auth.jsx'
+import { okUrl } from './Briefing/model.js'
 
 const cards = [
+  {
+    title: 'Daily Briefing',
+    description: 'Today\'s briefing, section by section. Tap a section to open it. Past days are in the archive. Private: sign in required.',
+    accent: '#e94560',
+    status: 'live',
+    href: '/briefing',
+    external: false,
+  },
   {
     title: 'Stovetop',
     description: 'Burner matrix for active projects. Track momentum, heat level, and what\'s simmering. Real-time view of where energy is allocated across Lenexa, BMSS, Celiva, and writing.',
@@ -34,12 +46,12 @@ const cards = [
     external: false,
   },
   {
-    title: 'Writing Dashboard',
-    description: 'Live editorial feedback loop. 7-section analysis (Progress, Quality, Quick Wins, Critique, Q&A, Sources). Supabase-backed feedback items.',
+    title: 'Writing',
+    description: 'One page per blog. Each opens its editorial feedback artifact on claude.ai. Replaces the standalone Mind Matter writing site. Private: sign in required.',
     accent: '#c8a96e',
     status: 'live',
-    href: 'https://kh1emnguyen.github.io/mind-matter-writing/',
-    external: true,
+    href: '/writing',
+    external: false,
   },
   {
     title: 'Fleet Tracker',
@@ -131,8 +143,41 @@ function StatusBadge({ status }) {
   )
 }
 
+// Private panes: artifact and tool links held in public.hub_links (owner-only), shown only while signed in.
+// The public repo never names them. Each pane redirects to its page on claude.ai.
+function PrivatePanes() {
+  const [rows, setRows] = useState([])
+  useEffect(() => {
+    let alive = true
+    supabase.from('hub_links').select('slug,kind,scope,title,url,note,sort').in('kind', ['artifact', 'tool']).order('sort', { ascending: true })
+      .then(({ data }) => { if (alive) setRows(data || []) }, () => {})
+    return () => { alive = false }
+  }, [])
+  if (!rows.length) return null
+  const scopes = [...new Set(rows.map((r) => r.scope))]
+  return (
+    <div style={{ marginBottom: 36 }}>
+      {scopes.map((sc) => (
+        <div key={sc} style={{ marginBottom: 22 }}>
+          <h2 style={{ fontSize: 13.5, letterSpacing: '.12em', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', marginBottom: 10 }}>{sc} · private panes</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 }}>
+            {rows.filter((r) => r.scope === sc).map((r) => (okUrl(r.url) ? (
+              <a key={r.url} href={r.url} target="_blank" rel="noopener noreferrer"
+                style={{ display: 'block', padding: '18px 20px', minHeight: 72, background: 'var(--card-bg)', border: '1px solid var(--card-border)', borderLeft: '4px solid #8b5cf6', borderRadius: 12 }}>
+                <div style={{ fontSize: 18, fontWeight: 600 }}>{r.title} <span style={{ color: 'var(--muted)' }}>↗</span></div>
+                {r.note && <div style={{ fontSize: 15, color: 'var(--muted)', marginTop: 4 }}>{r.note}</div>}
+              </a>
+            ) : null))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function Home() {
   const navigate = useNavigate()
+  const { session } = useSession()
 
   function handleCardClick(card) {
     if (card.disabled) return
@@ -169,11 +214,18 @@ export default function Home() {
             </div>
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>kh1emnguyen.github.io — mission control</p>
           </div>
+          {supabase && (
+            session
+              ? <button type="button" onClick={() => signOut()} style={{ fontSize: 14, color: 'var(--muted)', padding: '8px 12px' }}>Sign out</button>
+              : <button type="button" onClick={() => navigate('/briefing')} style={{ fontSize: 14, color: 'var(--text)', padding: '8px 14px', border: '1px solid var(--card-border)', borderRadius: 8 }}>Sign in</button>
+          )}
         </div>
       </header>
 
       {/* Main */}
       <main style={{ flex: 1, maxWidth: 1100, margin: '0 auto', padding: '32px 24px', width: '100%' }}>
+
+        {session && <PrivatePanes />}
 
         {/* Card Grid */}
         <div style={{

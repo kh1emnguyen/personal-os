@@ -7,8 +7,18 @@ Mission control for Khiem Nguyen's tools, projects, and internal apps.
 | Route | Description |
 |---|---|
 | `/` | Homepage card grid — OS launchpad |
-| `/writing` | Writing Dashboard (embedded, Supabase-backed) |
+| `/briefing`, `/briefing/:date` | Daily briefing, section by section (private: sign in). `?s=<id>` opens one section |
+| `/briefings` | Briefing archive (private) |
+| `/writing`, `/writing/:slug` | One page per blog, each redirecting to its claude.ai feedback artifact (private) |
 | `/anti-rut` | Anti-Rut app — Sanctuary + Mirror |
+| `/pulse` | Pulse habit capture |
+
+## Private pages on a public site
+
+This repo and its GitHub Pages site are public. Nothing private is in the code or the bundle. Private pages sit behind a
+Supabase email/password login, and the data lives in owner-only tables (`briefings`, `briefing_events`, `hub_links`;
+see `supabase/0004_briefings_private_hub.sql`). Row-level security is the lock; the login screen only decides what to show.
+The daily briefing script publishes to Supabase, never to this repo. Artifact titles and links are rows in `hub_links`.
 
 ## Stack
 
